@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <world name="default">
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- Human walking back and forth in front of the robot (spawned at 1.05 0.51) -->
+    <actor name="walking_human">
+      <skin>
+        <filename>walk.dae</filename>
+      </skin>
+      <animation name="walking">
+        <filename>walk.dae</filename>
+        <interpolate_x>true</interpolate_x>
+      </animation>
+      <script>
+        <loop>true</loop>
+        <trajectory id="0" type="walking">
+          <waypoint>
+            <time>0</time>
+            <pose>3.0 -1.0 0 0 0 1.57</pose>
+          </waypoint>
+          <waypoint>
+            <time>6</time>
+            <pose>3.0 2.0 0 0 0 1.57</pose>
+          </waypoint>
+          <waypoint>
+            <time>7</time>
+            <pose>3.0 2.0 0 0 0 -1.57</pose>
+          </waypoint>
+          <waypoint>
+            <time>13</time>
+            <pose>3.0 -1.0 0 0 0 -1.57</pose>
+          </waypoint>
+          <waypoint>
+            <time>14</time>
+            <pose>3.0 -1.0 0 0 0 1.57</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+  </world>
+</sdf>

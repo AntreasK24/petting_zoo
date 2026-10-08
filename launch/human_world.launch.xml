@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="gui" default="True"/>
+  <!-- walking or standing -->
+  <arg name="human" default="walking"/>
+  <arg name="world" default="$(find-pkg-share petting_zoo_navigation)/worlds/human_$(var human).world"/>
+  <!-- MIRTE master in the world with the human -->
+  <include file="$(find-pkg-share mirte_gazebo)/launch/gazebo_mirte_master_empty.launch.xml">
+    <arg name="gui" value="$(var gui)"/>
+    <arg name="world" value="$(var world)"/>
+  </include>
+</launch>

@@ -14,6 +14,10 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(vision_msgs REQUIRED)
+find_package(trajectory_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(OpenCV REQUIRED)
 
 
 if(BUILD_TESTING)
@@ -29,12 +33,24 @@ if(BUILD_TESTING)
 endif()
 
 add_executable(walking_around src/walking_around.cpp)
+add_executable(arm_track_controller src/arm_track_controller.cpp)
 target_include_directories(walking_around PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(walking_around rclcpp geometry_msgs sensor_msgs)
+target_include_directories(arm_track_controller PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+add_executable(human_detector src/human_detector.cpp)
+target_include_directories(human_detector PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
 
-install(TARGETS walking_around DESTINATION lib/${PROJECT_NAME})
+ament_target_dependencies(walking_around rclcpp geometry_msgs sensor_msgs)
+ament_target_dependencies(arm_track_controller rclcpp sensor_msgs vision_msgs trajectory_msgs)
+ament_target_dependencies(human_detector rclcpp sensor_msgs vision_msgs cv_bridge OpenCV)
+install(TARGETS walking_around arm_track_controller human_detector DESTINATION lib/${PROJECT_NAME})
+install(DIRECTORY worlds launch DESTINATION share/${PROJECT_NAME})
+
 
 
 ament_package()

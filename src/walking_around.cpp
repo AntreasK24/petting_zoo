@@ -12,20 +12,18 @@ using namespace std::chrono_literals;
 randomVelocityPublisher::randomVelocityPublisher()
 : Node("walking_around")
 {
-    random_velocity_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("mirte_base_controller/cmd_vel",10);
-    pick_timer_ = this->create_wall_timer(
-        2s,std::bind(&randomVelocityPublisher::pick_new_velocity,this)
-    );
-
+    random_velocity_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>(
+        "mirte_base_controller/cmd_vel",
+        10);
     scan_subscriber_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
         "scan", rclcpp::SensorDataQoS(),
         std::bind(&randomVelocityPublisher::scan_callback, this, std::placeholders::_1));
-
+    pick_timer_ = this->create_wall_timer(
+        2s,std::bind(&randomVelocityPublisher::pick_new_velocity,this)
+    );
     publish_timer_ = this->create_wall_timer(
         50ms,std::bind(&randomVelocityPublisher::publish_velocity,this)
     );
-
-
     pick_new_velocity();
 }
 
