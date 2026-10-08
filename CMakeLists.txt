@@ -29,6 +29,9 @@ if(BUILD_TESTING)
 endif()
 
 add_executable(walking_around src/walking_around.cpp)
+target_include_directories(walking_around PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
 ament_target_dependencies(walking_around rclcpp geometry_msgs sensor_msgs)
 
 install(TARGETS walking_around DESTINATION lib/${PROJECT_NAME})
