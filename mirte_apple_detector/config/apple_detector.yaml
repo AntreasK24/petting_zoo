@@ -6,13 +6,9 @@ apple_detector:
   ros__parameters:
 
     # --- input -----------------------------------------------------------
-    image_topic: /camera/image_raw/compressed
+    image_topic: /gripper_camera/image_raw/compressed
     queue_size: 1
     max_rate: 5.0                   # cap detection Hz (0 = every frame)
-
-    # --- annotated image -------------------------------------------------
-    publish_debug_image: true
-    debug_image_topic: detections/apples/annotated
 
     # --- shape filtering (rejects non-apple colour blobs) ----------------
     # Real apples have highlights/shadows, so their colour mask is rarely a

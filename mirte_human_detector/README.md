@@ -13,8 +13,6 @@ Apples are handled by the separate `mirte_apple_detector` package.
 
 **Publishes**
 - `detections/humans` (`vision_msgs/BoundingBox2DArray`)
-- `detections/humans/annotated` (`sensor_msgs/Image`) — input with green boxes
-  drawn (toggle via `publish_debug_image`).
 
 ## Install & build
 
@@ -36,10 +34,10 @@ ros2 launch mirte_human_detector human_detector.launch.xml
 Feed it a camera (e.g. `camera_ros`) publishing on
 `/camera/image_raw/compressed`.
 
-View:
+Inspect the detected boxes:
 
 ```bash
-ros2 run rqt_image_view rqt_image_view /detections/humans/annotated
+ros2 topic echo /detections/humans
 ```
 
 ## Configure
@@ -50,4 +48,3 @@ Everything is in [`config/human_detector.yaml`](config/human_detector.yaml):
 - `ncnn_input_size` — multiple of 32. Lower = faster (352→224 ~2×, 352→192 ~2.5×).
 - `num_threads` — CPU cores to use.
 - `confidence_threshold` — raise to be stricter.
-- `publish_debug_image` — turn the annotated image on/off.

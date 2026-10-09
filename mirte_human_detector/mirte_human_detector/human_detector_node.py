@@ -19,16 +19,14 @@ import rclpy
 from ament_index_python.packages import get_package_share_directory
 from cv_bridge import CvBridge
 from rclpy.node import Node
-from sensor_msgs.msg import CompressedImage, Image
+from sensor_msgs.msg import CompressedImage
 
 from vision_msgs.msg import BoundingBox2D, BoundingBox2DArray
 
 PACKAGE = 'mirte_human_detector'
 
-# Fixed output for the one class this node detects.
-LABEL = 'human'
+# Topic this node publishes its person boxes on.
 TOPIC = 'detections/humans'
-BOX_COLOR = (0, 255, 0)               # BGR (green)
 
 # Model files under <share>/models (populated by scripts/download_model.sh).
 DEFAULT_PARAM = 'yolo-fastestv2-opt.param'
@@ -74,20 +72,9 @@ class HumanDetectorNode(Node):
         self.threshold = float(self.declare_parameter(
             'confidence_threshold', 0.5).value)
 
-        # ---- annotated image ----------------------------------------------
-        self.publish_debug_image = self.declare_parameter(
-            'publish_debug_image', True).value
-        self.debug_image_topic = self.declare_parameter(
-            'debug_image_topic', 'detections/humans/annotated').value
-
         self._load_net(param_path, bin_path, use_fp16)
 
         self._pub = self.create_publisher(BoundingBox2DArray, TOPIC, 10)
-
-        self._debug_pub = None
-        if self.publish_debug_image:
-            self._debug_pub = self.create_publisher(
-                Image, self.debug_image_topic, queue_size)
 
         self._sub = self.create_subscription(
             CompressedImage, self.image_topic, self._image_cb, queue_size)
@@ -146,9 +133,8 @@ class HumanDetectorNode(Node):
         h, w = frame.shape[:2]
         out = BoundingBox2DArray()
         out.header = msg.header
-        annotate = self._debug_pub is not None
 
-        for confidence, fx1, fy1, fx2, fy2 in self._infer(frame):
+        for _confidence, fx1, fy1, fx2, fy2 in self._infer(frame):
             x1 = max(0, min(w - 1, int(fx1)))
             y1 = max(0, min(h - 1, int(fy1)))
             x2 = max(0, min(w, int(fx2)))
@@ -164,15 +150,8 @@ class HumanDetectorNode(Node):
             box.size_y = float(y2 - y1)
 
             out.boxes.append(box)
-            if annotate:
-                self._draw(frame, box, confidence)
 
         self._pub.publish(out)
-
-        if annotate:
-            debug_msg = self._bridge.cv2_to_imgmsg(frame, encoding='bgr8')
-            debug_msg.header = msg.header
-            self._debug_pub.publish(debug_msg)
 
     # -----------------------------------------------------------------------
     def _infer(self, frame):
@@ -220,18 +199,6 @@ class HumanDetectorNode(Node):
         scs = [r[0] for r in raw]
         keep = cv2.dnn.NMSBoxes(bbs, scs, self.threshold, NMS_THRESH)
         return [raw[int(k)] for k in np.array(keep).flatten()]
-
-    # -----------------------------------------------------------------------
-    @staticmethod
-    def _draw(frame, box: BoundingBox2D, score):
-        # Recover the top-left pixel rect from the center-based vision_msgs box.
-        x = int(round(box.center.position.x - box.size_x / 2.0))
-        y = int(round(box.center.position.y - box.size_y / 2.0))
-        w = int(round(box.size_x))
-        h = int(round(box.size_y))
-        cv2.rectangle(frame, (x, y), (x + w, y + h), BOX_COLOR, 2)
-        cv2.putText(frame, f'{LABEL} {score:.2f}', (x, max(y - 6, 0)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, BOX_COLOR, 1, cv2.LINE_AA)
 
 
 def main(args=None):

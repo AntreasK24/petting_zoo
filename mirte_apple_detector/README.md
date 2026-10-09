@@ -21,7 +21,6 @@ publish a bounding box per surviving blob.
 **Publishes**
 - `detections/apples/red` (`vision_msgs/BoundingBox2DArray`) — red apples
 - `detections/apples/green` (`vision_msgs/BoundingBox2DArray`) — green apples
-- `detections/apples/annotated` (`sensor_msgs/Image`) — red/green boxes drawn.
 
 ## Build & run
 
@@ -35,10 +34,10 @@ ros2 launch mirte_apple_detector apple_detector.launch.xml
 Feed it a camera (e.g. `camera_ros`) publishing on
 `/camera/image_raw/compressed`.
 
-View:
+Inspect the detected boxes:
 
 ```bash
-ros2 run rqt_image_view rqt_image_view /detections/apples/annotated
+ros2 topic echo /detections/apples/red
 ```
 
 ## Tuning

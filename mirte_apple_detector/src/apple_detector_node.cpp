@@ -9,13 +9,11 @@
 //   5. publish a bounding box per surviving contour
 //
 // Red and green apples are classified separately: each colour has its own
-// output topic and label ("red_apple" / "green_apple"). Everything is tunable
-// from config/apple_detector.yaml.
+// output topic ("red_apple" / "green_apple"). Everything is tunable from
+// config/apple_detector.yaml.
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdio>
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -25,41 +23,23 @@
 
 #include <opencv2/opencv.hpp>
 
-// cv_bridge spells its header .hpp from Iron onward, .h on Humble.
-#if __has_include(<cv_bridge/cv_bridge.hpp>)
-#include <cv_bridge/cv_bridge.hpp>
-#else
-#include <cv_bridge/cv_bridge.h>
-#endif
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
-#include <sensor_msgs/msg/image.hpp>
-#include <std_msgs/msg/header.hpp>
 
 #include <vision_msgs/msg/bounding_box2_d.hpp>
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
 
 using sensor_msgs::msg::CompressedImage;
-using sensor_msgs::msg::Image;
 using vision_msgs::msg::BoundingBox2D;
 using vision_msgs::msg::BoundingBox2DArray;
 
-// One apple colour: its HSV range(s), publisher and draw colour.
+// One apple colour: its HSV range(s) and output publisher.
 struct ColourClass
 {
   std::string name;
   std::string label;
   rclcpp::Publisher<BoundingBox2DArray>::SharedPtr pub;
-  cv::Scalar box_color;                                   // BGR
   std::vector<std::pair<cv::Scalar, cv::Scalar>> ranges;  // HSV lower/upper pairs
-};
-
-// A surviving contour: its bounding rect plus the circularity, kept only to
-// label the debug overlay (the published BoundingBox2D is geometry-only).
-struct ShapeBox
-{
-  cv::Rect rect;
-  double score;
 };
 
 class AppleDetector : public rclcpp::Node
@@ -85,24 +65,15 @@ public:
     morph_kernel_ = cv::getStructuringElement(
       cv::MORPH_ELLIPSE, cv::Size(std::max(1, morph), std::max(1, morph)));
 
-    // ---- annotated image -------------------------------------------------
-    publish_debug_ = declare_parameter<bool>("publish_debug_image", true);
-    const std::string debug_topic = declare_parameter<std::string>(
-      "debug_image_topic", "detections/apples/annotated");
-
     // ---- colour classes --------------------------------------------------
     // Exactly two fixed classes: red and green apples. Only their HSV
     // thresholds are tunable from YAML (<colour>.hue_ranges / sat_min /
-    // val_min); topic, label and draw colour are fixed.
-    setup_colour("red", "red_apple", cv::Scalar(0, 0, 255), {0, 10, 170, 179}, 120, 60);
-    setup_colour("green", "green_apple", cv::Scalar(0, 255, 0), {28, 95}, 40, 30);
+    // val_min); topic and label are fixed.
+    setup_colour("red", "red_apple", {0, 10, 170, 179}, 120, 60);
+    setup_colour("green", "green_apple", {28, 95}, 40, 30);
     if (classes_.empty()) {
       RCLCPP_FATAL(get_logger(), "No apple colours configured; shutting down.");
       throw std::runtime_error("no colours configured");
-    }
-
-    if (publish_debug_) {
-      debug_pub_ = create_publisher<Image>(debug_topic, queue_size);
     }
 
     sub_ = create_subscription<CompressedImage>(
@@ -122,9 +93,9 @@ private:
   // ---------------------------------------------------------------------
   // Set up one colour from easy parameters: a list of hue ranges plus a
   // saturation/value floor (max S/V are always 255). hue_ranges is a flat
-  // list of [lo, hi, lo, hi, ...] pairs, so red can span 0-25 AND 165-179.
+  // list of [lo, hi, lo, hi, ...] pairs, so red can span 0-10 AND 170-179.
   void setup_colour(
-    const std::string & name, const std::string & label, const cv::Scalar & box_color,
+    const std::string & name, const std::string & label,
     const std::vector<int64_t> & def_hue, int def_sat_min, int def_val_min)
   {
     const auto hue = declare_parameter<std::vector<int64_t>>(name + ".hue_ranges", def_hue);
@@ -141,7 +112,6 @@ private:
     ColourClass c;
     c.name = name;
     c.label = label;
-    c.box_color = box_color;
     for (size_t i = 0; i + 1 < hue.size(); i += 2) {
       c.ranges.emplace_back(
         cv::Scalar(hue[i], sat_min, val_min),
@@ -187,9 +157,6 @@ private:
     cv::Mat hsv;
     cv::cvtColor(proc, hsv, cv::COLOR_BGR2HSV);
 
-    const bool annotate = static_cast<bool>(debug_pub_);
-    cv::Mat annotated = annotate ? frame.clone() : cv::Mat();
-
     for (auto & cls : classes_) {
       cv::Mat mask;
       for (const auto & r : cls.ranges) {
@@ -202,32 +169,26 @@ private:
 
       BoundingBox2DArray out;
       out.header = msg->header;
-      for (const auto & sb : contours_to_boxes(mask)) {
+      for (const auto & r : contours_to_boxes(mask)) {
         BoundingBox2D box;
         // vision_msgs boxes are center-based; convert from OpenCV's top-left rect.
-        box.center.position.x = sb.rect.x + sb.rect.width / 2.0;
-        box.center.position.y = sb.rect.y + sb.rect.height / 2.0;
-        box.size_x = sb.rect.width;
-        box.size_y = sb.rect.height;
+        box.center.position.x = r.x + r.width / 2.0;
+        box.center.position.y = r.y + r.height / 2.0;
+        box.size_x = r.width;
+        box.size_y = r.height;
         out.boxes.push_back(box);
-        if (annotate) {draw(annotated, cls, sb.rect, sb.score);}
       }
       cls.pub->publish(out);
-    }
-
-    if (annotate) {
-      auto debug_msg = cv_bridge::CvImage(msg->header, "bgr8", annotated).toImageMsg();
-      debug_pub_->publish(*debug_msg);
     }
   }
 
   // ---------------------------------------------------------------------
-  std::vector<ShapeBox> contours_to_boxes(const cv::Mat & mask)
+  std::vector<cv::Rect> contours_to_boxes(const cv::Mat & mask)
   {
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-    std::vector<ShapeBox> boxes;
+    std::vector<cv::Rect> boxes;
     for (const auto & c : contours) {
       const double area = cv::contourArea(c);
       if (area < min_area_) {continue;}
@@ -245,21 +206,9 @@ private:
       const double solidity = (hull_area > 0.0) ? area / hull_area : 0.0;
       if (solidity < min_solidity_) {continue;}
 
-      const cv::Rect r = cv::boundingRect(c);
-      boxes.push_back({r, std::min(1.0, circularity)});
+      boxes.push_back(cv::boundingRect(c));
     }
     return boxes;
-  }
-
-  // ---------------------------------------------------------------------
-  static void draw(cv::Mat & frame, const ColourClass & cls, const cv::Rect & r, double score)
-  {
-    cv::rectangle(frame, r, cls.box_color, 2);
-    char text[64];
-    std::snprintf(text, sizeof(text), "%s %.2f", cls.label.c_str(), score);
-    cv::putText(
-      frame, text, cv::Point(r.x, std::max(r.y - 6, 0)),
-      cv::FONT_HERSHEY_SIMPLEX, 0.5, cls.box_color, 1, cv::LINE_AA);
   }
 
   // ---- members ---------------------------------------------------------
@@ -274,11 +223,8 @@ private:
   int blur_ksize_{5};
   cv::Mat morph_kernel_;
 
-  bool publish_debug_{true};
   std::vector<ColourClass> classes_;
-
   rclcpp::Subscription<CompressedImage>::SharedPtr sub_;
-  rclcpp::Publisher<Image>::SharedPtr debug_pub_;
 };
 
 int main(int argc, char ** argv)

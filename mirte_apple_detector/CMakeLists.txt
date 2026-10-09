@@ -12,7 +12,6 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(cv_bridge REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 
@@ -20,7 +19,6 @@ add_executable(apple_detector src/apple_detector_node.cpp)
 target_include_directories(apple_detector PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(apple_detector
   rclcpp::rclcpp
-  cv_bridge::cv_bridge
   ${sensor_msgs_TARGETS}
   ${vision_msgs_TARGETS}
   ${OpenCV_LIBS}
