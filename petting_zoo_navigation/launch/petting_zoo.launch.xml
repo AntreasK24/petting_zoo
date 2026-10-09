@@ -4,10 +4,13 @@
      Use on the robot:  use_sim_time:=false (default) -->
 <launch>
   <arg name="use_sim_time" default="false"/>
+  <!-- Real robot: /cmd_vel.  Simulation: /mirte_base_controller/cmd_vel_unstamped -->
+  <arg name="cmd_vel_topic" default="/cmd_vel"/>
 
   <!-- Random walk with obstacle avoidance (enabled/disabled by the FSM) -->
   <node pkg="petting_zoo_navigation" exec="walking_around" name="walking_around" output="screen">
     <param name="use_sim_time" value="$(var use_sim_time)"/>
+    <remap from="cmd_vel" to="$(var cmd_vel_topic)"/>
   </node>
 
   <!-- Points the arm at the detected human (enabled/disabled by the FSM) -->

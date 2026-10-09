@@ -13,7 +13,7 @@ randomVelocityPublisher::randomVelocityPublisher()
 : Node("walking_around")
 {
     random_velocity_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>(
-        "mirte_base_controller/cmd_vel_unstamped",
+        "cmd_vel",
         10);
 
     scan_subscriber_ = this->create_subscription<sensor_msgs::msg::LaserScan>(

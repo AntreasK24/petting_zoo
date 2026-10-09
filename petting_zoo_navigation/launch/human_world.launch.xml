@@ -14,5 +14,6 @@
   <!-- All petting zoo nodes -->
   <include file="$(find-pkg-share petting_zoo_navigation)/launch/petting_zoo.launch.xml">
     <arg name="use_sim_time" value="true"/>
+    <arg name="cmd_vel_topic" value="/mirte_base_controller/cmd_vel_unstamped"/>
   </include>
 </launch>
