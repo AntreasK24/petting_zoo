@@ -30,9 +30,16 @@ armTrackerController::armTrackerController()
         std::bind(&armTrackerController::joint_state_callback, this, std::placeholders::_1)
     );
 
+    //enable subscriber
+    enable_subscriber_ = this->create_subscription<std_msgs::msg::Bool>(
+        "arm_track_controller/enable", rclcpp::QoS(1).transient_local(),
+        std::bind(&armTrackerController::enable_callback, this, std::placeholders::_1)
+    );
+
+
     //bounding box subscriber
-    human_bounding_box_subscriber_ = this->create_subscription<vision_msgs::msg::BoundingBox2D>(
-        "human_bounding_box", 10,
+    human_bounding_box_subscriber_ = this->create_subscription<vision_msgs::msg::BoundingBox2DArray>(
+        "detections/humans", 10,
         std::bind(&armTrackerController::human_bounding_box_callback, this, std::placeholders::_1)
     );
 
@@ -43,6 +50,24 @@ armTrackerController::armTrackerController()
 
 
 }
+
+
+void armTrackerController::enable_callback(const std_msgs::msg::Bool::SharedPtr msg){
+    enabled_ = msg->data;
+    target_ = start_pose_;
+    at_start_ = false;
+    sends_left_ = 3;
+}
+
+
+bool armTrackerController::reached(const std::vector<double>& pose, double tol) const{
+    for(size_t i = 0; i < pose.size(); ++i){
+        if(std::abs(current_[i] - pose[i]) > tol) return false;
+    }
+    return true;
+}
+
+
 
 void armTrackerController::publish_joint_states(){
     if(sends_left_ <= 0) return;
@@ -82,16 +107,30 @@ void armTrackerController::joint_state_callback(const sensor_msgs::msg::JointSta
     have_joint_states_ = true;
 }
 
-void armTrackerController::human_bounding_box_callback(const vision_msgs::msg::BoundingBox2D::SharedPtr msg){
+void armTrackerController::human_bounding_box_callback(const vision_msgs::msg::BoundingBox2DArray::SharedPtr msg){
+    if (!enabled_ || msg->boxes.empty()) return;
+
+    //track the biggest box, it is the closest human
+    const vision_msgs::msg::BoundingBox2D* box = &msg->boxes[0];
+    for(const auto & b : msg->boxes){
+        if(b.size_x * b.size_y > box->size_x * box->size_y) box = &b;
+    }
+
     RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
     "Got bounding box: centre (%.0f, %.0f), size %.0f x %.0f",
-    msg->center.position.x, msg->center.position.y, msg->size_x, msg->size_y);
+    box->center.position.x, box->center.position.y, box->size_x, box->size_y);
 
     
     if(!have_joint_states_) return;
 
-    double error_x = msg->center.position.x - image_width_ / 2.0;
-    double error_y = msg->center.position.y - image_height_ / 2.0;
+    //wait until the arm is at the start pose before tracking
+    if(!at_start_){
+        if(!reached(start_pose_)) return;
+        at_start_ = true;
+    }
+
+    double error_x = box->center.position.x - image_width_ / 2.0;
+    double error_y = box->center.position.y - image_height_ / 2.0;
 
     if(std::abs(error_x) < deadband_px_) error_x = 0.0;
     if(std::abs(error_y) < deadband_px_) error_y = 0.0;

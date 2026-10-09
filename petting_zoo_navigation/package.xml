@@ -19,7 +19,10 @@
   <depend>vision_msgs</depend>
   <depend>cv_bridge</depend>
   <depend>libopencv-dev</depend>
+  <depend>std_msgs</depend>
   <exec_depend>mirte_gazebo</exec_depend>
+  <exec_depend>petting_zoo_fsm</exec_depend>
+  <exec_depend>mirte_human_detector</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(vision_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 file(GLOB STATE_SOURCES CONFIGURE_DEPENDS src/states/*.cpp)
 
@@ -16,7 +17,7 @@ add_executable(fsm_node src/fsm_node.cpp ${STATE_SOURCES})
 target_include_directories(fsm_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(fsm_node rclcpp vision_msgs)
+ament_target_dependencies(fsm_node rclcpp vision_msgs std_msgs)
 
 install(TARGETS fsm_node DESTINATION lib/${PROJECT_NAME})
 

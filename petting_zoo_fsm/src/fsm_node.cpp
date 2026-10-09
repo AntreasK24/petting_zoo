@@ -4,15 +4,22 @@
 
 FSMNode::FSMNode() : Node("fsm_node"){
     last_seen_ = now();
+    ignore_humans_until_ = now();
+    state_entered_ = now();
+
+    auto latched = rclcpp::QoS(1).transient_local();
+    walk_enable_pub_ = create_publisher<std_msgs::msg::Bool>("walking_around/enable", latched);
+    arm_enable_pub_  = create_publisher<std_msgs::msg::Bool>("arm_track_controller/enable", latched);
 
     //States
     addState<SearchingState>("searching");
     addState<TrackingState>("tracking");
 
-    box_sub_ = create_subscription<vision_msgs::msg::BoundingBox2D>(
-        "human_bounding_box",10,
-        [this](vision_msgs::msg::BoundingBox2D::SharedPtr msg){
-            last_box_ = *msg;
+    box_sub_ = create_subscription<vision_msgs::msg::BoundingBox2DArray>(
+        "detections/humans",10,
+        [this](vision_msgs::msg::BoundingBox2DArray::SharedPtr msg){
+            if(msg->boxes.empty()) return;   //detector also publishes empty arrays
+            last_box_ = msg->boxes[0];
             human_visible_ = true;
             last_seen_ = now();
         }
@@ -36,6 +43,7 @@ void FSMNode::tick(){
         current_ = states_.at(pending_).get();
         current_name_ = pending_;
         pending_.clear();
+        state_entered_ = now();
         current_->onEnter();
     }
     if(current_) current_->execute();

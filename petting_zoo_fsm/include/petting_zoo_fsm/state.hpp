@@ -9,7 +9,7 @@ class State{
 
         virtual void onEnter() {}
         virtual void execute() = 0;
-        virtual void onExit() {};
+        virtual void onExit() {}
 
 
     protected:

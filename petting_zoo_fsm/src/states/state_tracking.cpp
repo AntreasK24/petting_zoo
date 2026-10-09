@@ -5,6 +5,8 @@ TrackingState::TrackingState(FSMNode* fsm) : State(fsm) {}
 
 void TrackingState::onEnter() {
     RCLCPP_INFO(fsm_->get_logger(), "Entering Tracking State");
+    fsm_->setWalking(false);
+    fsm_->setTracking(true);
 }
 
 void TrackingState::onExit() {
@@ -12,5 +14,15 @@ void TrackingState::onExit() {
 }
 
 void TrackingState::execute() {
-    if ((fsm_->now() - fsm_->last_seen_).seconds() > 2.0) fsm_->switchState("searching");
+    double since_seen = (fsm_->now() - fsm_->last_seen_).seconds();
+    double in_state   = (fsm_->now() - fsm_->state_entered_).seconds();
+
+    if (in_state > fsm_->max_track_time_) {
+        RCLCPP_INFO(fsm_->get_logger(), "Tracked for %.0f s, moving on", in_state);
+        fsm_->ignore_humans_until_ = fsm_->now() + rclcpp::Duration::from_seconds(fsm_->cooldown_);
+        fsm_->switchState("searching");
+    } else if (since_seen > fsm_->lost_timeout_) {
+        RCLCPP_INFO(fsm_->get_logger(), "Lost human for %.0f s", since_seen);
+        fsm_->switchState("searching");
+    }
 }

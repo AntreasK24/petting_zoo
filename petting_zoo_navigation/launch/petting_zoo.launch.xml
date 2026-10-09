@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!-- Starts the petting zoo nodes without the simulation.
+     Use with Gazebo:   use_sim_time:=true
+     Use on the robot:  use_sim_time:=false (default) -->
+<launch>
+  <arg name="use_sim_time" default="false"/>
+
+  <!-- Random walk with obstacle avoidance (enabled/disabled by the FSM) -->
+  <node pkg="petting_zoo_navigation" exec="walking_around" name="walking_around" output="screen">
+    <param name="use_sim_time" value="$(var use_sim_time)"/>
+  </node>
+
+  <!-- Points the arm at the detected human (enabled/disabled by the FSM) -->
+  <node pkg="petting_zoo_navigation" exec="arm_track_controller" name="arm_track_controller" output="screen">
+    <param name="use_sim_time" value="$(var use_sim_time)"/>
+  </node>
+
+  <!-- YOLO human detector, publishes vision_msgs/BoundingBox2DArray on detections/humans -->
+  <include file="$(find-pkg-share mirte_human_detector)/launch/human_detector.launch.xml"/>
+
+  <!-- State machine: searching <-> tracking -->
+  <node pkg="petting_zoo_fsm" exec="fsm_node" name="fsm_node" output="screen">
+    <param name="use_sim_time" value="$(var use_sim_time)"/>
+  </node>
+</launch>

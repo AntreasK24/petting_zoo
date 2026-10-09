@@ -18,7 +18,7 @@ humanDetector::humanDetector()
 
     //bounding box publisher
     human_bounding_box_publisher_ = this->create_publisher<vision_msgs::msg::BoundingBox2D>(
-        "human_bounding_box",
+        "detections/humans",
         10
     );
 
