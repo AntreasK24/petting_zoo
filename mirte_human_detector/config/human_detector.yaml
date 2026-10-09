@@ -1,0 +1,36 @@
+# Configuration for mirte_human_detector (YOLO-FastestV2 via NCNN, CPU-only).
+# Tuned for a quad Cortex-A53 board (e.g. Orange Pi 3).
+#
+# The top-level key MUST match the node name ("human_detector").
+human_detector:
+  ros__parameters:
+
+    # --- input -----------------------------------------------------------
+    image_topic: /camera/image_raw/compressed
+    queue_size: 1                  # process newest frame only (lowest latency)
+    # Cap detection rate (Hz). 0 = run on every incoming frame. 5 = at most
+    # 5 Hz; extra frames are dropped before decoding, freeing the CPU.
+    max_rate: 5.0
+
+    # --- model / runtime (YOLO-FastestV2 on NCNN) ------------------------
+    # Leave model_path / config_path empty to use the files installed under
+    # <pkg>/models (populated by scripts/download_model.sh).
+    model_path: ''                 # .bin   (empty = bundled)
+    config_path: ''                # .param (empty = bundled)
+    num_threads: 4                 # use all 4 A53 cores (leave 1 free if other
+                                   # heavy nodes share the board)
+
+    # YOLO-FastestV2 is fully convolutional, so you can shrink its input for
+    # speed. Must be a multiple of 32. Measured: 352->224 ~2x, 352->192 ~2.5x.
+    ncnn_input_size: 224
+    # fp16 math: no help on A53, can help on A55/A76+.
+    ncnn_fp16: false
+
+    # --- detection -------------------------------------------------------
+    # Keep a detection only if its confidence clears this; raise to be stricter.
+    confidence_threshold: 0.5
+
+    # --- annotated image -------------------------------------------------
+    # Humans are published on detections/humans (vision_msgs/BoundingBox2DArray).
+    publish_debug_image: true
+    debug_image_topic: detections/humans/annotated

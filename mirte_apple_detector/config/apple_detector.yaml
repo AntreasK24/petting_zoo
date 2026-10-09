@@ -1,0 +1,49 @@
+# Configuration for mirte_apple_detector (colour + shape, no neural network).
+# Detects exactly two classes: red and green apples.
+#
+# The top-level key MUST match the node name ("apple_detector").
+apple_detector:
+  ros__parameters:
+
+    # --- input -----------------------------------------------------------
+    image_topic: /camera/image_raw/compressed
+    queue_size: 1
+    max_rate: 5.0                   # cap detection Hz (0 = every frame)
+
+    # --- annotated image -------------------------------------------------
+    publish_debug_image: true
+    debug_image_topic: detections/apples/annotated
+
+    # --- shape filtering (rejects non-apple colour blobs) ----------------
+    # Real apples have highlights/shadows, so their colour mask is rarely a
+    # perfect disc. Solidity (how "filled-in" the blob is) is the reliable
+    # shape cue; circularity is kept loose so glossy/cropped apples still pass.
+    min_area: 700                  # px^2; ignore blobs smaller than this
+    max_area: 0                    # px^2; 0 = no upper limit
+    min_circularity: 0.35          # loose: real apples run ~0.35-0.8
+    min_solidity: 0.78             # main shape cue; rejects spindly blobs
+    blur_ksize: 5                  # Gaussian blur before HSV (odd; <3 = off)
+    morph_ksize: 11                # bigger kernel consolidates highlight gaps
+
+    # --- colours (HSV tuning for the two fixed apple classes) ------------
+    # Each colour has its own hue range(s) + a saturation/value floor; the max
+    # saturation and value are always 255. Only two knobs to think about:
+    #   - hue_ranges: which hues count (flat [lo,hi,lo,hi,...] pairs, 0-179)
+    #   - sat_min / val_min: lower these if apples look washed out or shadowed
+    #
+    # Hue cheat-sheet:  red 0-10 & 170-179 | orange 11-25 | yellow 25-34
+    #                   green 35-85 | cyan 85-100 | blue 100-130
+    #
+    # Red apples -- strict: pure, vivid red only. This rejects orange / skin /
+    # clutter for very few false positives, at the cost of missing badly
+    # washed-out apples. To catch paler or more orange reds, lower sat_min
+    # and/or widen the first hue range (e.g. 10 -> 22).
+    red:
+      hue_ranges: [0, 10, 170, 179]    # pure red, wraps around hue 0
+      sat_min: 120                     # high: only vivid reds
+      val_min: 60
+
+    green:
+      hue_ranges: [28, 95]
+      sat_min: 40
+      val_min: 30

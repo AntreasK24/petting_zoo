@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!-- Launch the mirte_human_detector node with parameters from the YAML config.
+
+     Override the config file at launch time with:
+       ros2 launch mirte_human_detector human_detector.launch.xml \
+           config_file:=/path/to/your.yaml
+-->
+<launch>
+  <arg name="config_file"
+       default="$(find-pkg-share mirte_human_detector)/config/human_detector.yaml"
+       description="Full path to the parameter YAML file."/>
+
+  <node pkg="mirte_human_detector" exec="human_detector" name="human_detector" output="screen">
+    <param from="$(var config_file)"/>
+  </node>
+</launch>
